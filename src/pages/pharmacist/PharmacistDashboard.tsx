@@ -1,54 +1,37 @@
 import React, { useState, useEffect } from 'react';
-import { Search, ClipboardList, Users, Settings } from 'lucide-react';
+import { Search, Pill, Database, Settings } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { DashboardLayout, type SidebarItem } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import type { Hospital } from '@/services/mocks/hospitalData';
 import HospitalSelector from '@/components/shared/HospitalSelector';
-import SearchTab from './components/SearchTab';
-import VisitsTab from './components/VisitsTab';
-import PatientsTab from './components/PatientsTab';
-import { getHospitals, getMetadata, type Metadata } from '@/services/api';
-import { MedicineProvider } from '@/context/MedicineContext';
+import { getHospitals } from '@/services/api';
+import GiveMedicineTab from './components/GiveMedicineTab';
+import MedicineManagementTab from './components/MedicineManagementTab';
+import BulkUpdateTab from './components/BulkUpdateTab';
 
-const doctorMenuItems: SidebarItem[] = [
-  { id: 'search', label: 'Search Patient', icon: Search },
-  { id: 'visits', label: 'Today\'s Visits', icon: ClipboardList },
-  { id: 'patients', label: 'My Patients', icon: Users },
+const pharmacistMenuItems: SidebarItem[] = [
+  { id: 'give', label: 'Give Medicine', icon: Search },
+  { id: 'medicines', label: 'Medicines', icon: Pill },
+  { id: 'bulk', label: 'Bulk Update', icon: Database },
   { id: 'settings', label: 'Settings', icon: Settings },
 ];
+import { MedicineProvider } from '@/context/MedicineContext';
 
-const DoctorDashboard: React.FC = () => {
+const PharmacistDashboard: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   
-  // Initialize state from URL
-  const initialTab = searchParams.get('tab') || 'search';
+  const initialTab = searchParams.get('tab') || 'give';
   const hospitalIdInUrl = searchParams.get('hospitalId');
 
   const [activeTab, setActiveTabState] = useState(initialTab);
   const [selectedHospital, setSelectedHospital] = useState<Hospital | null>(null);
-  const [metadata, setMetadata] = useState<Metadata | null>(null);
 
-  // Fetch metadata when hospital changes
   useEffect(() => {
-    const fetchMeta = async () => {
-      try {
-        const data = await getMetadata(selectedHospital?.id);
-        setMetadata(data);
-      } catch (err) {
-        console.error("Failed to fetch metadata", err);
-      }
-    };
-    fetchMeta();
-  }, [selectedHospital?.id]);
-
-  // Effect to sync URL tab changes to state (e.g. back button)
-  useEffect(() => {
-    const currentTab = searchParams.get('tab') || 'search';
+    const currentTab = searchParams.get('tab') || 'give';
     setActiveTabState(currentTab);
   }, [searchParams]);
 
-  // Effect to restore selected hospital from URL if page refreshed
   useEffect(() => {
     const restoreHospital = async () => {
       if (hospitalIdInUrl && !selectedHospital) {
@@ -83,15 +66,13 @@ const DoctorDashboard: React.FC = () => {
   };
 
   const getPageTitle = () => {
-    if (!selectedHospital) {
-      return 'Select Hospital';
-    }
+    if (!selectedHospital) return 'Select Hospital';
     switch (activeTab) {
-      case 'search': return `Search Patient - ${selectedHospital.name}`;
-      case 'visits': return `Today's Visits - ${selectedHospital.name}`;
-      case 'patients': return 'Patient History';
+      case 'give': return `Dispense Medicine - ${selectedHospital.name}`;
+      case 'medicines': return `Medicine Inventory - ${selectedHospital.name}`;
+      case 'bulk': return 'Bulk Update';
       case 'settings': return 'Settings';
-      default: return 'Doctor Dashboard';
+      default: return 'Pharmacist Dashboard';
     }
   };
 
@@ -106,7 +87,7 @@ const DoctorDashboard: React.FC = () => {
   return (
     <MedicineProvider>
       <DashboardLayout
-        menuItems={doctorMenuItems}
+        menuItems={pharmacistMenuItems}
         activeTab={activeTab}
         onTabChange={handleTabChange}
         pageTitle={getPageTitle()}
@@ -120,21 +101,18 @@ const DoctorDashboard: React.FC = () => {
           <HospitalSelector
             onSelect={handleHospitalSelect}
             title="Select Hospital"
-            description="Choose the hospital to start your session"
+            description="Choose the hospital to manage medicines"
           />
         ) : (
           <>
-            {activeTab === 'search' && <SearchTab hospitalId={selectedHospital.id} metadata={metadata} />}
-            
-            {activeTab === 'visits' && <VisitsTab hospitalId={selectedHospital.id} />}
-            
-            {activeTab === 'patients' && <PatientsTab />}
-            
+            {activeTab === 'give' && <GiveMedicineTab hospitalId={selectedHospital.id} />}
+            {activeTab === 'medicines' && <MedicineManagementTab hospitalId={selectedHospital.id} />}
+            {activeTab === 'bulk' && <BulkUpdateTab />}
             {activeTab === 'settings' && (
               <div className="flex flex-col items-center justify-center h-64 text-muted-foreground border-2 border-dashed rounded-lg bg-card">
                 <Settings className="h-12 w-12 mb-4 opacity-20" />
                 <p className="text-lg font-medium">Settings</p>
-                <p className="text-sm">Coming Soon - Manage your profile and preferences.</p>
+                <p className="text-sm">Coming Soon - Pharmacist preferences.</p>
               </div>
             )}
           </>
@@ -144,4 +122,4 @@ const DoctorDashboard: React.FC = () => {
   );
 };
 
-export default DoctorDashboard;
+export default PharmacistDashboard;

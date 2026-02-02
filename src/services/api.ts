@@ -742,6 +742,8 @@ const mapBackendVisit = (v: any): Visit => {
       otherProblems: v.otherProblems,
       medicinesGiven: v.medicinesGiven,
       prescribedMedicines: v.prescribedMedicines,
+      medicineGiven: v.medicineGiven,
+      givenMedicines: v.givenMedicines,
       advice: v.advice,
       followUpDate: v.followUpDate
     } : undefined
@@ -1066,3 +1068,78 @@ export const createOfflineVisit = async (patientId: string, hospitalId: string, 
   };
 };
 
+// --- Pharmacist APIs ---
+
+export const searchPharmacistVisitByToken = async (token: number, hospitalId: string): Promise<Visit | null> => {
+  const response = await api.get(`/pharmacist/visit/search`, { params: { token, hospitalId } });
+  return mapBackendVisit(response.data);
+};
+
+export const searchPharmacistVisitOptimized = async (token: number, hospitalId: string): Promise<any | null> => {
+  const response = await api.get(`/pharmacist/visit/search-optimized`, { params: { token, hospitalId } });
+  return response.data;
+};
+
+export const giveMedicines = async (visitId: string, hospitalId: string, medicines: PrescribedMedicineItem[]): Promise<any> => {
+  const response = await api.post(`/pharmacist/give-medicine`, { visitId, hospitalId, medicines });
+  return response.data;
+};
+
+// --- Medicine Management APIs ---
+
+export interface Medicine {
+  id: string;
+  name: string;
+  quantity?: number;
+  lowStockThreshold?: number;
+}
+
+export const getMedicinesList = async (page: number = 1, limit: number = 10, search?: string): Promise<{ medicines: Medicine[], total: number, pages: number }> => {
+  const response = await api.get('/pharmacist/medicines', { params: { page, limit, search } });
+  const { medicines, total, pages } = response.data;
+  return {
+    medicines: medicines.map((m: any) => ({ ...m, id: m._id || m.id })),
+    total,
+    pages
+  };
+};
+
+export const getMedicineNames = async (): Promise<{id: string, name: string}[]> => {
+  const response = await api.get('/pharmacist/medicines/names');
+  return response.data;
+};
+
+export const getMedicineById = async (id: string): Promise<Medicine> => {
+  const response = await api.get(`/pharmacist/medicine/${id}`);
+  const m = response.data;
+  return { ...m, id: m._id || m.id };
+};
+
+export const getMedicineDetail = async (name: string): Promise<Medicine> => {
+  const response = await api.get('/pharmacist/medicines/detail', { params: { name } });
+  const m = response.data;
+  return { ...m, id: m._id || m.id };
+};
+
+export const addMedicine = async (medicineData: any): Promise<Medicine> => {
+  const response = await api.post('/pharmacist/medicines', medicineData);
+  const m = response.data;
+  return { ...m, id: m._id || m.id };
+};
+
+export const updateMedicine = async (id: string, medicineData: any): Promise<Medicine> => {
+  const response = await api.put(`/pharmacist/medicines/${id}`, medicineData);
+  const m = response.data;
+  return { ...m, id: m._id || m.id };
+};
+
+
+export const bulkCreateMedicines = async (medicines: Partial<Medicine>[]): Promise<Medicine[]> => {
+  const response = await api.post('/pharmacist/medicines/bulk', { medicines });
+  return response.data;
+};
+
+export const bulkUpdateMedicines = async (medicines: Medicine[]): Promise<any> => {
+  const response = await api.put('/pharmacist/medicines/bulk', { medicines });
+  return response.data;
+};

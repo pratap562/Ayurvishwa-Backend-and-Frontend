@@ -17,6 +17,7 @@ export interface OtherProblems {
 }
 
 export interface PrescribedMedicineItem {
+  medicineId?: string;
   medicineName: string;
   quantity: number;
   dosage: string;
@@ -66,6 +67,8 @@ export interface MedicalHistory {
   otherProblems?: OtherProblems;
   medicinesGiven?: string[];
   prescribedMedicines?: PrescribedMedicineItem[];
+  medicineGiven?: boolean;
+  givenMedicines?: PrescribedMedicineItem[];
   advice?: string;
   followUpDate?: string;
 }
@@ -93,6 +96,8 @@ export interface Visit {
   medicinesGiven?: string[];
   pharmacistNotes?: string;
   dispensedAt?: string;
+  medicineGiven?: boolean;
+  givenMedicines?: PrescribedMedicineItem[];
 }
 
 export const mockVisits: Visit[] = []

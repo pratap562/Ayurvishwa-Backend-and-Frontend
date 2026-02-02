@@ -89,11 +89,14 @@ export interface VisitDocument extends Document {
   
   advice?: string;
   followUpDate?: string;
+  medicineGiven: boolean;
+  givenMedicines?: PrescribedMedicineItem[];
   createdAt: Date;
   updatedAt: Date;
 }
 
 const prescribedMedicineSchema = new Schema({
+  medicineId: { type: Schema.Types.ObjectId, ref: "Medicine", required: true  }, // Link to medicine inventory
   medicineName: { type: String, required: true },
   quantity: { type: Number, required: true },
   dosage: { type: String },
@@ -176,6 +179,10 @@ const visitSchema = new Schema<VisitDocument>(
     
     // Structured prescription
     prescribedMedicines: [prescribedMedicineSchema],
+    
+    // Pharmacist fields
+    medicineGiven: { type: Boolean, default: false },
+    givenMedicines: [prescribedMedicineSchema],
     
     // Legacy simple list
     medicinesGiven: [{ type: String }],

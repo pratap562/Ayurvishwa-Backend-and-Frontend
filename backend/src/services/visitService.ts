@@ -179,19 +179,61 @@ export const getTodayVisitsForHospital = async (
   };
 };
 
-export const updateVisitMedicalDetails = async (visitId: string, medicalDetails: any): Promise<VisitDocument> => {
-  const visit = await Visit.findByIdAndUpdate(
-    visitId,
-    {
-      ...medicalDetails,
-      status: 'done'
-    },
-    { new: true }
-  ).select('-__v') as VisitDocument | null;
+/**
+ * Sanitize medical details by converting empty strings to undefined
+ * This prevents Enum validation errors when empty values are sent from frontend
+ */
+const sanitizeMedicalDetails = (details: any) => {
+  const sanitized = { ...details };
+  
+  // Clean top-level fields
+  if (sanitized.diseaseDuration === '') sanitized.diseaseDuration = undefined;
 
+  // Clean Nadi fields
+  if (sanitized.nadi) {
+    if (sanitized.nadi.wrist === '') sanitized.nadi.wrist = undefined;
+    if (sanitized.nadi.gati === '') sanitized.nadi.gati = undefined;
+    if (sanitized.nadi.bala === '') sanitized.nadi.bala = undefined;
+    if (sanitized.nadi.tala === '') sanitized.nadi.tala = undefined;
+    if (sanitized.nadi.temperature === '') sanitized.nadi.temperature = undefined;
+  }
+
+  // Clean Ayurvedic Baseline
+  if (sanitized.ayurvedicBaseline) {
+    if (sanitized.ayurvedicBaseline.agni === '') sanitized.ayurvedicBaseline.agni = undefined;
+    if (sanitized.ayurvedicBaseline.amaStatus === '') sanitized.ayurvedicBaseline.amaStatus = undefined;
+    
+    if (sanitized.ayurvedicBaseline.dosha) {
+        if (sanitized.ayurvedicBaseline.dosha.indication === '') sanitized.ayurvedicBaseline.dosha.indication = undefined;
+        if (sanitized.ayurvedicBaseline.dosha.dominant === '') sanitized.ayurvedicBaseline.dosha.dominant = undefined;
+    }
+
+    if (sanitized.ayurvedicBaseline.dailyHabits) {
+        if (sanitized.ayurvedicBaseline.dailyHabits.sleep === '') sanitized.ayurvedicBaseline.dailyHabits.sleep = undefined;
+        if (sanitized.ayurvedicBaseline.dailyHabits.appetite === '') sanitized.ayurvedicBaseline.dailyHabits.appetite = undefined;
+        if (sanitized.ayurvedicBaseline.dailyHabits.bowel === '') sanitized.ayurvedicBaseline.dailyHabits.bowel = undefined;
+    }
+  }
+
+  return sanitized;
+};
+
+export const updateVisitMedicalDetails = async (visitId: string, medicalDetails: any): Promise<VisitDocument> => {
+  const visit = await Visit.findById(visitId);
+  
   if (!visit) {
     throw new Error('Visit not found');
   }
+
+  const sanitized = sanitizeMedicalDetails(medicalDetails);
+
+  // Apply updates
+  Object.assign(visit, sanitized);
+  
+  // Force status to done
+  visit.status = 'done';
+
+  await visit.save();
 
   return visit;
 };

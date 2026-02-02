@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import AdminDashboard from '../pages/admin/AdminDashboard';
 import DoctorDashboard from '../pages/doctor/DoctorDashboard';
 import ReceptionistDashboard from '../pages/receptionist/ReceptionistDashboard';
+import PharmacistDashboard from '../pages/pharmacist/PharmacistDashboard';
 
 import Login from '../pages/auth/Login';
 import Signup from '../pages/auth/Signup';
@@ -38,6 +39,14 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute allowedRoles={['receptionist']}>
             <ReceptionistDashboard />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/pharmacist" 
+        element={
+          <ProtectedRoute allowedRoles={['pharmacist']}>
+            <PharmacistDashboard />
           </ProtectedRoute>
         } 
       />

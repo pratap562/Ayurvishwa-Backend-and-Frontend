@@ -27,7 +27,10 @@ import { mockMedicines } from '@/services/mocks/medicineData';
 import { updateVisit, type Metadata } from '@/services/api';
 import toast from 'react-hot-toast';
 
+import { useMedicineContext } from '@/context/MedicineContext';
+
 const prescribedMedicineSchema = z.object({
+  medicineId: z.string().optional(),
   medicineName: z.string().min(1, 'Medicine name is required'),
   quantity: z.number().optional().default(1),
   dosage: z.string().optional().default(''),
@@ -126,6 +129,7 @@ const extractOther = (selected: string[] = [], options: string[] = []) => {
 };
 
 const VisitForm: React.FC<VisitFormProps> = ({ visitId, onSuccess, metadata, initialData, lastVisit }) => {
+  const { medicineNames } = useMedicineContext();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [medicineSearch, setMedicineSearch] = useState('');
   
@@ -352,14 +356,15 @@ const VisitForm: React.FC<VisitFormProps> = ({ visitId, onSuccess, metadata, ini
 
   const selectedMedicines = watch('prescribedMedicines') || [];
 
-  const filteredMedicines = (metadata?.medicines || mockMedicines).filter(m => 
-    m.toLowerCase().includes(medicineSearch.toLowerCase()) && 
-    !selectedMedicines.find(sm => sm.medicineName === m)
+  const filteredMedicines = medicineNames.filter(m => 
+    m.name.toLowerCase().includes(medicineSearch.toLowerCase()) && 
+    !selectedMedicines.find(sm => sm.medicineName === m.name)
   );
 
-  const addMedicine = (medicineName: string) => {
+  const addMedicine = (medicine: { id: string, name: string }) => {
     const newItem: z.infer<typeof prescribedMedicineSchema> = {
-      medicineName,
+      medicineId: medicine.id,
+      medicineName: medicine.name,
       quantity: 1,
       dosage: '',
       timing: '',
@@ -398,6 +403,24 @@ const VisitForm: React.FC<VisitFormProps> = ({ visitId, onSuccess, metadata, ini
           temperature: data.vitals.temperature || undefined,
         } : undefined,
       };
+
+      // Frontend Sanitization: Remove empty strings for Enum fields
+      if (finalData.nadi) {
+        if (finalData.nadi.wrist === '') delete (finalData.nadi as any).wrist;
+        if (finalData.nadi.gati === '') delete (finalData.nadi as any).gati;
+        if (finalData.nadi.bala === '') delete (finalData.nadi as any).bala;
+        if (finalData.nadi.tala === '') delete (finalData.nadi as any).tala;
+        if (finalData.nadi.temperature === '') delete (finalData.nadi as any).temperature;
+      }
+
+      if (finalData.ayurvedicBaseline) {
+        if (finalData.ayurvedicBaseline.agni === '') delete (finalData.ayurvedicBaseline as any).agni;
+        if (finalData.ayurvedicBaseline.amaStatus === '') delete (finalData.ayurvedicBaseline as any).amaStatus;
+        if (finalData.ayurvedicBaseline.dosha) {
+            if (finalData.ayurvedicBaseline.dosha.indication === '') delete (finalData.ayurvedicBaseline.dosha as any).indication;
+            if (finalData.ayurvedicBaseline.dosha.dominant === '') delete (finalData.ayurvedicBaseline.dosha as any).dominant;
+        }
+      }
 
       await updateVisit(visitId, finalData as any);
       toast.success('Visit details updated successfully');
@@ -938,12 +961,12 @@ const VisitForm: React.FC<VisitFormProps> = ({ visitId, onSuccess, metadata, ini
                       {filteredMedicines.length > 0 ? (
                         filteredMedicines.map((med) => (
                           <button
-                            key={med}
+                            key={med.id}
                             type="button"
                             onClick={() => addMedicine(med)}
                             className="w-full text-left px-4 py-2.5 text-sm hover:bg-primary/5 rounded-md flex items-center justify-between group transition-colors"
                           >
-                            <span className="font-medium">{med}</span>
+                            <span className="font-medium">{med.name}</span>
                             <Plus className="h-4 w-4 text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
                           </button>
                         ))
@@ -959,91 +982,106 @@ const VisitForm: React.FC<VisitFormProps> = ({ visitId, onSuccess, metadata, ini
             <div className="space-y-3">
               {selectedMedicines.map((med, idx) => (
                 <Card key={`${med.medicineName}-${idx}`} className="bg-muted/30 border-primary/10 hover:border-primary/30 transition-all overflow-hidden">
-                  <div className="p-3">
-                    <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-                      <div className="flex-1">
-                        <p className="text-sm font-bold text-primary mb-1">{med.medicineName}</p>
+                  <div className="p-4 space-y-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Pill className="h-3.5 w-3.5 text-primary" />
+                          <span className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60">Prescribed Medicine</span>
+                        </div>
+                        <p className="text-base font-bold text-primary leading-tight break-words">
+                          {med.medicineName}
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeMedicine(idx)}
+                        className="h-8 w-8 text-destructive hover:bg-destructive/10 -mt-1 -mr-1 shrink-0"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                      <div className="space-y-1.5 text-left">
+                        <Label className="text-[10px] uppercase text-muted-foreground font-black tracking-widest">Qty</Label>
+                        <Input 
+                          type="number" 
+                          value={med.quantity} 
+                          onChange={(e) => updateMedicine(idx, 'quantity', parseInt(e.target.value) || 1)}
+                          className="h-9 font-bold bg-background"
+                          min="1"
+                        />
                       </div>
 
-                      <div className="grid grid-cols-2 lg:flex items-center gap-4 w-full lg:w-auto">
-                        <div className="flex flex-col gap-1.5">
-                          <Label className="text-[10px] uppercase text-muted-foreground font-bold">Qty</Label>
-                          <Input 
-                            type="number" 
-                            value={med.quantity} 
-                            onChange={(e) => updateMedicine(idx, 'quantity', parseInt(e.target.value) || 1)}
-                            className="h-9 w-16 text-center text-sm font-bold"
-                            min="1"
-                          />
-                        </div>
-
-                        <div className="flex flex-col gap-1.5">
-                          <Label className="text-[10px] uppercase text-muted-foreground font-bold">Freq</Label>
-                          <select 
-                            value={med.dosage}
-                            onChange={(e) => updateMedicine(idx, 'dosage', e.target.value)}
-                            className="h-9 bg-background border rounded px-2 text-xs font-bold focus:ring-1 focus:ring-primary/20 outline-none"
-                          >
-                            <option value="">Select</option>
-                            <option value="OD">OD</option>
-                            <option value="BD">BD</option>
-                            <option value="TDS">TDS</option>
-                            <option value="HS">HS</option>
-                            <option value="SOS">SOS</option>
-                            <option value="QID">QID</option>
-                          </select>
-                        </div>
-
-                        <div className="flex flex-col gap-1.5">
-                          <Label className="text-[10px] uppercase text-muted-foreground font-bold">Kala</Label>
-                          <select 
-                            value={med.kala}
-                            onChange={(e) => updateMedicine(idx, 'kala', e.target.value)}
-                            className="h-9 bg-background border rounded px-2 text-xs font-bold focus:ring-1 focus:ring-primary/20 outline-none"
-                          >
-                            <option value="">Select Kala</option>
-                            <option value="Before">Before</option>
-                            <option value="After">After</option>
-                            <option value="Morning">Morning</option>
-                            <option value="Night">Night</option>
-                          </select>
-                        </div>
-
-                        <div className="flex flex-col gap-1.5">
-                          <Label className="text-[10px] uppercase text-muted-foreground font-bold">Anupana</Label>
-                          <select 
-                            value={med.anupana}
-                            onChange={(e) => updateMedicine(idx, 'anupana', e.target.value)}
-                            className="h-9 bg-background border rounded px-2 text-xs font-bold focus:ring-1 focus:ring-primary/20 outline-none min-w-[100px]"
-                          >
-                            <option value="">Select Anupana</option>
-                            <option value="Warm Water">Warm Water</option>
-                            <option value="Milk">Milk</option>
-                            <option value="Honey">Honey</option>
-                            <option value="Ghee">Ghee</option>
-                          </select>
-                        </div>
-
-                        <div className="flex flex-col gap-1.5 flex-1 lg:w-48">
-                          <Label className="text-[10px] uppercase text-muted-foreground font-bold">Instruction</Label>
-                          <Input 
-                            placeholder="e.g. Empty stomach" 
-                            value={med.instructions}
-                            onChange={(e) => updateMedicine(idx, 'instructions', e.target.value)}
-                            className="h-9 text-xs"
-                          />
-                        </div>
-
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removeMedicine(idx)}
-                          className="h-9 w-9 text-destructive hover:bg-destructive/10 lg:mt-5"
+                      <div className="space-y-1.5 text-left">
+                        <Label className="text-[10px] uppercase text-muted-foreground font-black tracking-widest">Frequency</Label>
+                        <select 
+                          value={med.dosage}
+                          onChange={(e) => updateMedicine(idx, 'dosage', e.target.value)}
+                          className="w-full h-9 bg-background border rounded-md px-2 text-xs font-bold focus:ring-1 focus:ring-primary/20 outline-none"
                         >
-                          <X className="h-4 w-4" />
-                        </Button>
+                          <option value="">Select</option>
+                          <option value="OD">Once a day (OD)</option>
+                          <option value="BD">Twice a day (BD)</option>
+                          <option value="TDS">Thrice a day (TDS)</option>
+                          <option value="HS">At bedtime (HS)</option>
+                          <option value="SOS">As needed (SOS)</option>
+                          <option value="QID">Four times a day (QID)</option>
+                        </select>
                       </div>
+
+                      <div className="space-y-1.5 text-left">
+                        <Label className="text-[10px] uppercase text-muted-foreground font-black tracking-widest">Kala</Label>
+                        <select 
+                          value={med.kala}
+                          onChange={(e) => updateMedicine(idx, 'kala', e.target.value)}
+                          className="w-full h-9 bg-background border rounded-md px-2 text-xs font-bold focus:ring-1 focus:ring-primary/20 outline-none"
+                        >
+                          <option value="">Select Kala</option>
+                          <option value="Before">Before Meal</option>
+                          <option value="After">After Meal</option>
+                          <option value="Morning">Morning</option>
+                          <option value="Night">Night</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1.5 text-left">
+                        <Label className="text-[10px] uppercase text-muted-foreground font-black tracking-widest">Anupana</Label>
+                        <select 
+                          value={med.anupana}
+                          onChange={(e) => updateMedicine(idx, 'anupana', e.target.value)}
+                          className="w-full h-9 bg-background border rounded-md px-2 text-xs font-bold focus:ring-1 focus:ring-primary/20 outline-none"
+                        >
+                          <option value="">Select Anupana</option>
+                          <option value="Warm Water">Warm Water</option>
+                          <option value="Milk">Milk</option>
+                          <option value="Honey">Honey</option>
+                          <option value="Ghee">Ghee</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1.5 text-left col-span-2 md:col-span-1 lg:col-span-1">
+                        <Label className="text-[10px] uppercase text-muted-foreground font-black tracking-widest">Duration</Label>
+                        <Input 
+                          placeholder="e.g. 5 days" 
+                          value={med.duration}
+                          onChange={(e) => updateMedicine(idx, 'duration', e.target.value)}
+                          className="h-9 text-xs font-medium bg-background"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 pt-2 border-t border-dashed border-primary/10">
+                      <Label className="text-[10px] uppercase text-muted-foreground font-black tracking-widest">Instructions & Notes</Label>
+                      <Input 
+                        placeholder="e.g. Take with lukewarm water, avoid spicy food, etc." 
+                        value={med.instructions}
+                        onChange={(e) => updateMedicine(idx, 'instructions', e.target.value)}
+                        className="h-9 text-xs italic bg-background/50 border-none shadow-none focus-visible:ring-1 focus-visible:ring-primary/20"
+                      />
                     </div>
                   </div>
                 </Card>

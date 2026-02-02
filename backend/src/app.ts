@@ -12,6 +12,7 @@ import metadataRoutes from "./routes/metadataRoutes";
 import leadRoutes from "./routes/leadRoutes";
 import bookingRoutes from "./routes/bookingRoutes";
 import anylyticsRoutes from "./routes/analyticsRoutes";
+import pharmacistRoutes from "./routes/pharmacistRoutes";
 import { connectDB } from "./config/db";
 
 const app: Application = express();
@@ -39,6 +40,7 @@ app.use("/api/metadata", metadataRoutes);
 app.use("/api/public/booking", bookingRoutes); // Public booking routes (no auth)
 app.use("/api/analytics", anylyticsRoutes);
 app.use("/api/leads", leadRoutes);
+app.use("/api/pharmacist", pharmacistRoutes);
 
 connectDB();
 
